@@ -168,6 +168,10 @@ IPAddress FSWebServer::setAPmode(const char *ssid, const char *psk)
     return WiFi.softAPIP();
 }
 
+void superImportantFunction() {
+    Serial.println("Super important function");
+}
+
 IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const char *apPsw)
 {
     IPAddress ip;
@@ -176,12 +180,14 @@ IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const cha
 
     const char *_ssid;
     const char *_pass;
+    const char *_identity;
 
     wifi_config_t conf;
     esp_wifi_get_config(WIFI_IF_STA, &conf);
   
     _ssid = reinterpret_cast<const char *>(conf.sta.ssid);
     _pass = reinterpret_cast<const char *>(conf.sta.password);
+    _identity = reinterpret_cast<const char *>(conf.sta.identity);
 
     char *my_ssid = new char[33];
     strncpy(my_ssid, _ssid, 32);
@@ -190,6 +196,8 @@ IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const cha
 
     if (strlen(_ssid) && strlen(_pass))
     {
+        Serial.printf("######\nidentity is %s\n", _identity);
+        superImportantFunction();
         WiFi.begin(_ssid, _pass, 0, 0, true);
         Serial.print(F("Connecting to "));
         Serial.println(_ssid);
@@ -343,6 +351,9 @@ void FSWebServer::doWifiConnection()
 
     if (ssid.length() && pass.length())
     {
+        if (enterprise) {
+            Serial.println("######### enterprise is true!!!");
+        }
         // Try to connect to new ssid
         Serial.print("\nConnecting to ");
         Serial.println(ssid);
