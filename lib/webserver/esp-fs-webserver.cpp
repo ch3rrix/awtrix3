@@ -288,8 +288,9 @@ void FSWebServer::doRestart()
 
 void FSWebServer::doWifiConnection()
 {
-    String ssid, pass;
+    String ssid, pass, identity;
     bool persistent = true;
+    bool enterprise = false;
     WiFi.mode(WIFI_AP_STA);
 
     if (webserver->hasArg("ssid"))
@@ -302,12 +303,26 @@ void FSWebServer::doWifiConnection()
         pass = webserver->arg("password");
     }
 
+    if (webserver->hasArg("identity"))
+    {
+        identity = webserver->arg("identity");
+    }
+
     if (webserver->hasArg("persistent"))
     {
         String pers = webserver->arg("persistent");
         if (pers.equals("false"))
         {
             persistent = false;
+        }
+    }
+
+    if (webserver->hasArg("enterprise"))
+    {
+        String entp = webserver->arg("enterprise");
+        if (entp.equals("true"))
+        {
+            enterprise = true;
         }
     }
 
