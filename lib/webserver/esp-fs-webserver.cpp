@@ -80,7 +80,7 @@ bool FSWebServer::checkDir(char *dirname, uint8_t levels)
     return true;
 }
 
-bool FSWebServer::begin( int port,const char *path)
+bool FSWebServer::begin(int port, const char *path)
 {
     DebugPrintln("\nList the files of webserver: ");
     if (path != nullptr)
@@ -168,7 +168,8 @@ IPAddress FSWebServer::setAPmode(const char *ssid, const char *psk)
     return WiFi.softAPIP();
 }
 
-void superImportantFunction() {
+void superImportantFunction()
+{
     Serial.println("Super important function");
 }
 
@@ -184,7 +185,7 @@ IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const cha
 
     wifi_config_t conf;
     esp_wifi_get_config(WIFI_IF_STA, &conf);
-  
+
     _ssid = reinterpret_cast<const char *>(conf.sta.ssid);
     _pass = reinterpret_cast<const char *>(conf.sta.password);
     _identity = reinterpret_cast<const char *>(conf.sta.identity);
@@ -193,6 +194,8 @@ IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const cha
     strncpy(my_ssid, _ssid, 32);
     my_ssid[32] = '\0';
     _ssid = my_ssid;
+
+    Serial.printf("#ssid: %s\n#pass: %s\n#identity: %s\n", _ssid, _pass, _identity);
 
     if (strlen(_ssid) && strlen(_pass))
     {
@@ -266,11 +269,7 @@ void FSWebServer::handleRequest()
         replyToCLient(ERROR, PSTR(FS_INIT_ERROR));
         return;
     }
-#if defined(ESP32)
     String _url = WebServer::urlDecode(webserver->uri());
-#elif defined(ESP8266)
-    String _url = ESP8266WebServer::urlDecode(webserver->uri());
-#endif
     // First try to find and return the requested file from the filesystem,
     // and if it fails, return a 404 page with debug information
     // Serial.print("urlDecode: ");
@@ -351,13 +350,23 @@ void FSWebServer::doWifiConnection()
 
     if (ssid.length() && pass.length())
     {
-        if (enterprise) {
-            Serial.println("######### enterprise is true!!!");
+        if (enterprise)
+        {
+            Serial.println("\n######### enterprise is true!!!");
+            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\npassword: %s", enterprise ? "true" : "false", ssid, identity.c_str(), pass);
+            Serial.printf("\nConnecting to enterprise network: %s\n", ssid);
+            Serial.printf("\nConnecting to hardcoded id: %s\n", "ru.vishtalmagomedov");
+
+            Serial.println(WiFi.begin("YADRONET", WPA2_AUTH_PEAP, "ru.vishtalmagomedov", "ru.vishtalmagomedov", "superStrongPasswordGoesHere", NULL, NULL, NULL, 0, 0, true));
         }
-        // Try to connect to new ssid
-        Serial.print("\nConnecting to ");
-        Serial.println(ssid);
-        WiFi.begin(ssid.c_str(), pass.c_str(), 0, 0, true);
+        else
+        {
+            Serial.println("######### not enterprise(((((!!!");
+            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\npassword: %s", enterprise ? "true" : "false", ssid, identity, pass);
+
+            Serial.printf("\nConnecting to network: %s\n", ssid);
+            WiFi.begin(ssid.c_str(), pass.c_str(), 0, 0, true);
+        }
 
         uint32_t beginTime = millis();
         while (WiFi.status() != WL_CONNECTED)
@@ -377,45 +386,43 @@ void FSWebServer::doWifiConnection()
             webserver->send(200, "text/plain", ip.toString());
             m_apmode = false;
             delay(500);
-            ESP.restart();
             // Store current WiFi configuration in flash
             if (persistent)
             {
-#if defined(ESP8266)
-                struct station_config stationConf;
-                wifi_station_get_config_default(&stationConf);
-                // Clear previuos configuration
-                memset(&stationConf, 0, sizeof(stationConf));
-                os_memcpy(&stationConf.ssid, ssid.c_str(), ssid.length());
-                os_memcpy(&stationConf.password, pass.c_str(), pass.length());
-                wifi_set_opmode(STATION_MODE);
-                wifi_station_set_config(&stationConf);
-#elif defined(ESP32)
                 wifi_config_t stationConf;
                 esp_wifi_get_config(WIFI_IF_STA, &stationConf);
                 // Clear previuos configuration
                 memset(&stationConf, 0, sizeof(stationConf));
-                memcpy(&stationConf.sta.ssid, ssid.c_str(), ssid.length());
-                memcpy(&stationConf.sta.password, pass.c_str(), pass.length());
-                esp_wifi_set_config(WIFI_IF_STA, &stationConf);
-#endif
+                size_t ssid_len = strlen(ssid.c_str());
+                size_t pass_len = strlen(pass.c_str());
+                size_t identity_len = strlen(identity.c_str());
+
+                // Copy SSID with bounds checking
+                ssid_len = (ssid_len < 31) ? ssid_len : 31;
+                memcpy(stationConf.sta.ssid, ssid.c_str(), ssid_len);
+                stationConf.sta.ssid[ssid_len] = '\0';
+
+                // Copy password with bounds checking
+                pass_len = (pass_len < 63) ? pass_len : 63;
+                memcpy(stationConf.sta.password, pass.c_str(), pass_len);
+                stationConf.sta.password[pass_len] = '\0';
+
+                if (enterprise)
+                {
+                    identity_len = (identity_len < 31) ? identity_len : 31;
+                    memcpy(stationConf.sta.identity, identity.c_str(), identity_len);
+                    stationConf.sta.identity[identity_len] = '\0';
+                }
             }
             else
             {
-#if defined(ESP8266)
-                struct station_config stationConf;
-                wifi_station_get_config_default(&stationConf);
-                // Clear previuos configuration
-                memset(&stationConf, 0, sizeof(stationConf));
-                wifi_station_set_config(&stationConf);
-#elif defined(ESP32)
                 wifi_config_t stationConf;
                 esp_wifi_get_config(WIFI_IF_STA, &stationConf);
                 // Clear previuos configuration
                 memset(&stationConf, 0, sizeof(stationConf));
                 esp_wifi_set_config(WIFI_IF_STA, &stationConf);
-#endif
             }
+            ESP.restart();
         }
         else
             webserver->send(500, "text/plain", "Connection error, maybe the password is wrong?");
@@ -452,11 +459,7 @@ void FSWebServer::handleScanNetworks()
         {
             String ssid = WiFi.SSID(i);
             int rssi = WiFi.RSSI(i);
-#if defined(ESP8266)
-            String security = WiFi.encryptionType(i) == AUTH_OPEN ? "none" : "enabled";
-#elif defined(ESP32)
             String security = WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "none" : "enabled";
-#endif
             jsonList += "{\"ssid\":\"";
             jsonList += ssid;
             jsonList += "\",\"strength\":\"";
@@ -960,15 +963,8 @@ void FSWebServer::handleStatus()
     size_t totalBytes = 1024;
     size_t usedBytes = 0;
 
-#ifdef ESP8266
-    FSInfo fs_info;
-    m_filesystem->info(fs_info);
-    totalBytes = fs_info.totalBytes;
-    usedBytes = fs_info.usedBytes;
-#elif defined(ESP32)
     totalBytes = LittleFS.totalBytes();
     usedBytes = LittleFS.usedBytes();
-#endif
 
     String json;
     json.reserve(256); // Increased the size to accommodate the SSID

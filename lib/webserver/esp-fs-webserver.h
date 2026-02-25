@@ -31,6 +31,9 @@ using UpdateServerClass = ESP8266HTTPUpdateServer;
 #include <esp_wifi.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <WiFiSTA.h>
+#include <esp_wpa2.h>
+#include <esp_wifi.h>
 #include <ESPmDNS.h>
 #include <HTTPUpdateServer.h> // from Arduino core, OTA update via webbrowser
 using WebServerClass = WebServer;
@@ -320,7 +323,7 @@ private:
     bool m_fsOK = false;
     bool m_apmode = false;
     char *m_apWebpage = (char *)"/setup";
-    uint32_t m_timeout = 10000;
+    uint32_t m_timeout = 30000;
 
     // Default handler for all URIs not defined above, use it to read files from filesystem
     bool checkDir(char *dirname, uint8_t levels);
