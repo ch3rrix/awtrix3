@@ -30,6 +30,7 @@ using UpdateServerClass = ESP8266HTTPUpdateServer;
 #elif defined(ESP32)
 #include <esp_wifi.h>
 #include <WebServer.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiSTA.h>
 #include <esp_wpa2.h>
@@ -79,6 +80,7 @@ class FSWebServer
 
 public:
     WebServerClass *webserver;
+    Preferences credentials;
 
     FSWebServer(fs::FS &fs, WebServerClass &server);
 
@@ -91,6 +93,8 @@ public:
     void addHandler(const Uri &uri, WebServerClass::THandlerFunction handler);
 
     void setCaptiveWebage(const char *url);
+    void writeCredentials(const char *ssid, const char *identity, const char *password);
+    bool readCredentials(String &ssid, String &identity, String &password);
 
     IPAddress setAPmode(const char *ssid, const char *psk);
 

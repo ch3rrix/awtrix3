@@ -155,6 +155,28 @@ void FSWebServer::setCaptiveWebage(const char *url)
     m_apWebpage = (char *)realloc(m_apWebpage, sizeof(url));
     strcpy(m_apWebpage, url);
 }
+void FSWebServer::writeCredentials(const char *ssid, const char *identity, const char *password)
+{
+    credentials.begin("wifi", false);
+    credentials.putString("ssid", ssid);
+    credentials.putString("identity", identity);
+    credentials.putString("password", password);
+
+    credentials.end();
+}
+
+bool FSWebServer::readCredentials(String &ssid, String &identity, String &password)
+{
+    credentials.begin("wifi", true);
+
+    ssid = credentials.getString("ssid", "");
+    identity = credentials.getString("identity", "");
+    password = credentials.getString("password", "");
+
+    credentials.end();
+
+    return ssid.length() > 0;
+}
 
 IPAddress FSWebServer::setAPmode(const char *ssid, const char *psk)
 {
@@ -166,11 +188,6 @@ IPAddress FSWebServer::setAPmode(const char *ssid, const char *psk)
     m_dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
     m_dnsServer.start(53, "*", WiFi.softAPIP());
     return WiFi.softAPIP();
-}
-
-void superImportantFunction()
-{
-    Serial.println("Super important function");
 }
 
 IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const char *apPsw)
@@ -200,7 +217,6 @@ IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const cha
     if (strlen(_ssid) && strlen(_pass))
     {
         Serial.printf("######\nidentity is %s\n", _identity);
-        superImportantFunction();
         WiFi.begin(_ssid, _pass, 0, 0, true);
         Serial.print(F("Connecting to "));
         Serial.println(_ssid);
@@ -353,11 +369,11 @@ void FSWebServer::doWifiConnection()
         if (enterprise)
         {
             Serial.println("\n######### enterprise is true!!!");
-            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\npassword: %s", enterprise ? "true" : "false", ssid, identity.c_str(), pass);
+            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\npassword: %s", enterprise ? "true" : "false", ssid.c_str(), identity.c_str(), pass.c_str());
             Serial.printf("\nConnecting to enterprise network: %s\n", ssid);
-            Serial.printf("\nConnecting to hardcoded id: %s\n", "ru.vishtalmagomedov");
+            // Serial.printf("\nConnecting to hardcoded id: %s\n", "ru.vishtalmagomedov");
 
-            Serial.println(WiFi.begin("YADRONET", WPA2_AUTH_PEAP, "ru.vishtalmagomedov", "ru.vishtalmagomedov", "superStrongPasswordGoesHere", NULL, NULL, NULL, 0, 0, true));
+            Serial.println(WiFi.begin("YADRONET", WPA2_AUTH_PEAP, identity.c_str(), identity.c_str(), pass.c_str(), NULL, NULL, NULL, 0, 0, true));
         }
         else
         {
@@ -393,26 +409,10 @@ void FSWebServer::doWifiConnection()
                 esp_wifi_get_config(WIFI_IF_STA, &stationConf);
                 // Clear previuos configuration
                 memset(&stationConf, 0, sizeof(stationConf));
-                size_t ssid_len = strlen(ssid.c_str());
-                size_t pass_len = strlen(pass.c_str());
-                size_t identity_len = strlen(identity.c_str());
 
-                // Copy SSID with bounds checking
-                ssid_len = (ssid_len < 31) ? ssid_len : 31;
-                memcpy(stationConf.sta.ssid, ssid.c_str(), ssid_len);
-                stationConf.sta.ssid[ssid_len] = '\0';
-
-                // Copy password with bounds checking
-                pass_len = (pass_len < 63) ? pass_len : 63;
-                memcpy(stationConf.sta.password, pass.c_str(), pass_len);
-                stationConf.sta.password[pass_len] = '\0';
-
-                if (enterprise)
-                {
-                    identity_len = (identity_len < 31) ? identity_len : 31;
-                    memcpy(stationConf.sta.identity, identity.c_str(), identity_len);
-                    stationConf.sta.identity[identity_len] = '\0';
-                }
+                memcpy(&stationConf.sta.ssid, ssid.c_str(), ssid.length());
+                memcpy(&stationConf.sta.password, pass.c_str(), pass.length());
+                writeCredentials(ssid, identity, pass);
             }
             else
             {
