@@ -157,23 +157,23 @@ void FSWebServer::setCaptiveWebage(const char *url)
 }
 void FSWebServer::writeCredentials(const char *ssid, const char *identity, const char *password)
 {
-    credentials.begin("wifi", false);
-    credentials.putString("ssid", ssid);
-    credentials.putString("identity", identity);
-    credentials.putString("password", password);
+    m_credentials.begin("wifi", false);
+    m_credentials.putString("ssid", ssid);
+    m_credentials.putString("identity", identity);
+    m_credentials.putString("password", password);
 
-    credentials.end();
+    m_credentials.end();
 }
 
 bool FSWebServer::readCredentials(String &ssid, String &identity, String &password)
 {
-    credentials.begin("wifi", true);
+    m_credentials.begin("wifi", true);
 
-    ssid = credentials.getString("ssid", "");
-    identity = credentials.getString("identity", "");
-    password = credentials.getString("password", "");
+    ssid = m_credentials.getString("ssid", "");
+    identity = m_credentials.getString("identity", "");
+    password = m_credentials.getString("password", "");
 
-    credentials.end();
+    m_credentials.end();
 
     return ssid.length() > 0;
 }
@@ -190,56 +190,51 @@ IPAddress FSWebServer::setAPmode(const char *ssid, const char *psk)
     return WiFi.softAPIP();
 }
 
-IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const char *apPsw)
+IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const char *apPsw, size_t retrycount)
 {
     IPAddress ip;
     m_timeout = timeout;
     WiFi.mode(WIFI_STA);
 
-    const char *_ssid;
-    const char *_pass;
-    const char *_identity;
+    String ssid;
+    String pass;
+    String identity;
 
-    wifi_config_t conf;
-    esp_wifi_get_config(WIFI_IF_STA, &conf);
-
-    _ssid = reinterpret_cast<const char *>(conf.sta.ssid);
-    _pass = reinterpret_cast<const char *>(conf.sta.password);
-    _identity = reinterpret_cast<const char *>(conf.sta.identity);
-
-    char *my_ssid = new char[33];
-    strncpy(my_ssid, _ssid, 32);
-    my_ssid[32] = '\0';
-    _ssid = my_ssid;
-
-    Serial.printf("#ssid: %s\n#pass: %s\n#identity: %s\n", _ssid, _pass, _identity);
-
-    if (strlen(_ssid) && strlen(_pass))
+    if (readCredentials(ssid, identity, pass))
     {
-        Serial.printf("######\nidentity is %s\n", _identity);
-        WiFi.begin(_ssid, _pass, 0, 0, true);
-        Serial.print(F("Connecting to "));
-        Serial.println(_ssid);
-
-        uint32_t startTime = millis();
-        while (WiFi.status() != WL_CONNECTED)
+        Serial.printf("#ssid: %s\n#pass: %s\n#identity: %s\n", ssid.c_str(), pass.c_str(), identity.c_str());
+        for (size_t i = 0; i < retrycount; ++i)
         {
-            delay(300);
-            Serial.print(".");
-            if (WiFi.status() == WL_CONNECTED)
+            if (identity)
             {
-                ip = WiFi.localIP();
-                WiFi.persistent(true);
-                delete[] my_ssid;
-                return ip;
+                Serial.println(WiFi.begin(ssid.c_str(), WPA2_AUTH_PEAP, identity.c_str(), identity.c_str(), pass.c_str(), NULL, NULL, NULL, 0, 0, true));
+                Serial.printf("Connecting to enterprise network: %s\n", ssid);
             }
-            // If no connection after a while go in Access Point mode
-            if (millis() - startTime > m_timeout)
+            else
             {
-                Serial.println(F("No connection after a while -> go in Access Point mode"));
-                break;
+                WiFi.begin(ssid, pass, 0, 0, true);
+                Serial.printf("Connecting to %s\n", ssid);
+            }
+
+            uint32_t startTime = millis();
+            while (WiFi.status() != WL_CONNECTED)
+            {
+                delay(300);
+                Serial.print(".");
+                if (WiFi.status() == WL_CONNECTED)
+                {
+                    ip = WiFi.localIP();
+                    WiFi.persistent(true);
+                    return ip;
+                }
+                // If no connection after a while go in Access Point mode
+                if (millis() - startTime > m_timeout)
+                {
+                    break;
+                }
             }
         }
+        Serial.println("No connection after a while -> go in Access Point mode");
     }
 
     if (apSSID != nullptr && apPsw != nullptr)
@@ -249,10 +244,7 @@ IPAddress FSWebServer::startWiFi(uint32_t timeout, const char *apSSID, const cha
 
     WiFi.begin();
     ip = WiFi.softAPIP();
-    Serial.print(F("\nAP mode.\nServer IP address: "));
-    Serial.println(ip);
-    Serial.println();
-    delete[] my_ssid;
+    Serial.printf("\nAP mode.\nServer IP address: %s\n", ip);
     return ip;
 }
 
@@ -368,17 +360,14 @@ void FSWebServer::doWifiConnection()
     {
         if (enterprise)
         {
-            Serial.println("\n######### enterprise is true!!!");
-            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\npassword: %s", enterprise ? "true" : "false", ssid.c_str(), identity.c_str(), pass.c_str());
+            Serial.printf("enterprise: %s\nssid: %s\nusername: %s", enterprise ? "true" : "false", ssid.c_str(), identity.c_str());
             Serial.printf("\nConnecting to enterprise network: %s\n", ssid);
-            // Serial.printf("\nConnecting to hardcoded id: %s\n", "ru.vishtalmagomedov");
 
-            Serial.println(WiFi.begin("YADRONET", WPA2_AUTH_PEAP, identity.c_str(), identity.c_str(), pass.c_str(), NULL, NULL, NULL, 0, 0, true));
+            Serial.println(WiFi.begin(ssid.c_str(), WPA2_AUTH_PEAP, identity.c_str(), identity.c_str(), pass.c_str(), NULL, NULL, NULL, 0, 0, true));
         }
         else
         {
-            Serial.println("######### not enterprise(((((!!!");
-            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\npassword: %s", enterprise ? "true" : "false", ssid, identity, pass);
+            Serial.printf("enterprise: %s\n ssid: %s\nusername: %s\n", enterprise ? "true" : "false", ssid.c_str(), identity.c_str());
 
             Serial.printf("\nConnecting to network: %s\n", ssid);
             WiFi.begin(ssid.c_str(), pass.c_str(), 0, 0, true);
@@ -412,7 +401,10 @@ void FSWebServer::doWifiConnection()
 
                 memcpy(&stationConf.sta.ssid, ssid.c_str(), ssid.length());
                 memcpy(&stationConf.sta.password, pass.c_str(), pass.length());
-                writeCredentials(ssid, identity, pass);
+
+                // TODO: idk if i will remove previous method completely, but in any case my one works fine atm
+                // probably will remove every stationConf in place related to storing ssid/password/identity.
+                writeCredentials(ssid.c_str(), identity.c_str(), pass.c_str());
             }
             else
             {

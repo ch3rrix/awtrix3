@@ -15,6 +15,8 @@
 #include <HTTPClient.h>
 #include "Games/GameManager.h"
 #include <EEPROM.h>
+// defines number of attempts of connecting to a network on boot (passed into FSWebServer::startWiFi())
+#define CONNECTION_RETRY_COUNT 3
 
 WiFiUDP udp;
 
@@ -215,7 +217,7 @@ void ServerManager_::setup()
         WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS);
     }
     WiFi.setHostname(HOSTNAME.c_str()); // define hostname
-    myIP = mws.startWiFi(AP_TIMEOUT * 1000, HOSTNAME.c_str(), "12345678");
+    myIP = mws.startWiFi(AP_TIMEOUT * 1000, HOSTNAME.c_str(), "12345678", CONNECTION_RETRY_COUNT);
     isConnected = !(myIP == IPAddress(192, 168, 4, 1));
     if (DEBUG_MODE)
         DEBUG_PRINTF("My IP: %d.%d.%d.%d", myIP[0], myIP[1], myIP[2], myIP[3]);

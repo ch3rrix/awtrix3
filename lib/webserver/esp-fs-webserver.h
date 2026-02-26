@@ -80,7 +80,6 @@ class FSWebServer
 
 public:
     WebServerClass *webserver;
-    Preferences credentials;
 
     FSWebServer(fs::FS &fs, WebServerClass &server);
 
@@ -98,7 +97,7 @@ public:
 
     IPAddress setAPmode(const char *ssid, const char *psk);
 
-    IPAddress startWiFi(uint32_t timeout, const char *apSSID, const char *apPsw);
+    IPAddress startWiFi(uint32_t timeout, const char *apSSID, const char *apPsw, size_t retrycount);
 
     WebServerClass *getRequest();
 
@@ -161,7 +160,6 @@ public:
     {
         addOption(label, val, hidden);
     }
-
     // Add custom option to config webpage (float values)
     template <typename T>
     inline void addOption(const char *label, T val, double d_min, double d_max, double step)
@@ -328,6 +326,7 @@ private:
     bool m_apmode = false;
     char *m_apWebpage = (char *)"/setup";
     uint32_t m_timeout = 30000;
+    Preferences m_credentials;
 
     // Default handler for all URIs not defined above, use it to read files from filesystem
     bool checkDir(char *dirname, uint8_t levels);
